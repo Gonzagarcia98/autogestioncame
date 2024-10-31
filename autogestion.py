@@ -19,7 +19,7 @@ PROXIMOS_CONSEJOS = [
         "lugar": "Zoom",
         "direccion": "",
         "modalidad": "Virtual",
-        "link_inscripcion": "https://us06web.zoom.us/meeting/register/ejemplo-link-came",
+        "link_inscripcion": "https://forms.gle/PAf1yowpbbpxBPyr5",
         "activo": True
     }
 ]
