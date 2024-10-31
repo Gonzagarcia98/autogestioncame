@@ -7,6 +7,10 @@ import datetime
 from pathlib import Path
 import os
 
+# Crear directorio de uploads si no existe
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 # Configuración de la página
 st.set_page_config(
     page_title="Autogestión CAME",
@@ -113,8 +117,21 @@ def load_data():
             st.error(f"No se encontró el archivo {file_path}")
             return pd.DataFrame()
 
-        df = pd.read_csv(file_path, encoding='utf-8')
+        # Intentar diferentes encodings
+        encodings = ['utf-8', 'latin1', 'iso-8859-1']
+        df = None
         
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if df is None:
+            st.error("No se pudo leer el archivo con ninguna codificación conocida")
+            return pd.DataFrame()
+
         # Mapeo de columnas
         columns_map = {
             'Entidad': 'nombre_entidad',
@@ -367,7 +384,7 @@ else:
                     if save_file(igj_file, entity_data['nombre_entidad'], "igj"):
                         st.success("IGJ enviado correctamente")
             
-            # AFIP
+           # AFIP
             st.write("### AFIP")
             afip_status = "Enviado" if entity_data['afip'] == "Si" else "Pendiente"
             st.write(f"Estado: {afip_status}")
@@ -443,8 +460,3 @@ else:
         with tab2:
             st.write("### Reuniones anteriores")
             st.info("El histórico de reuniones estará disponible próximamente")
-
-if _name_ == "_main_":
-    # Verificar directorios necesarios
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
