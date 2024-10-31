@@ -7,49 +7,58 @@ from datetime import datetime
 import plotly.express as px
 import os
 
-# Código de diagnóstico temporal
-def check_database():
-    try:
-        # Verificar si el archivo existe
-        if os.path.exists('users.db'):
-            print("Base de datos encontrada")
-            conn = sqlite3.connect('users.db')
-            c = conn.cursor()
-            
-            # Verificar estructura
-            c.execute("PRAGMA table_info(users)")
-            structure = c.fetchall()
-            print("Estructura de la tabla:", structure)
-            
-            # Verificar registros
-            c.execute("SELECT * FROM users")
-            records = c.fetchall()
-            print(f"Registros encontrados: {len(records)}")
-            for record in records:
-                print(record)
-            
-            conn.close()
-        else:
-            print("No se encuentra el archivo users.db")
-    except Exception as e:
-        print(f"Error al verificar la base de datos: {e}")
-
-# Ejecutar diagnóstico
-check_database()
-
+# Función de diagnóstico de bases de datos
+def check_all_databases():
+    st.subheader("Diagnóstico de Bases de Datos")
+    databases = ['users.db', 'came_database']
+    
+    for db_name in databases:
+        st.write(f"\n--- Verificando {db_name} ---")
+        try:
+            if os.path.exists(db_name):
+                conn = sqlite3.connect(db_name)
+                c = conn.cursor()
+                
+                # Listar todas las tablas
+                c.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                tables = c.fetchall()
+                st.write(f"Tablas encontradas en {db_name}:", tables)
+                
+                # Para cada tabla, mostrar su contenido
+                for table in tables:
+                    table_name = table[0]
+                    st.write(f"\nContenido de la tabla {table_name}:")
+                    
+                    # Obtener estructura de la tabla
+                    c.execute(f"PRAGMA table_info({table_name})")
+                    columns = [col[1] for col in c.fetchall()]
+                    
+                    # Obtener datos
+                    c.execute(f"SELECT * FROM {table_name}")
+                    records = c.fetchall()
+                    
+                    if records:
+                        df = pd.DataFrame(records, columns=columns)
+                        st.dataframe(df)
+                    else:
+                        st.write("Tabla vacía")
+                
+                conn.close()
+            else:
+                st.write(f"No se encuentra el archivo {db_name}")
+        except Exception as e:
+            st.write(f"Error al verificar {db_name}: {str(e)}")
 
 def admin_app():
     st.set_page_config(page_title="CAME - Panel Administrativo", layout="wide")
     
-    # Verificar la existencia del archivo de base de datos
-    db_path = 'users.db'
-    if not os.path.exists(db_path):
-        st.error(f"No se encuentra el archivo de base de datos: {db_path}")
-        st.info("Archivos disponibles en el directorio:")
-        st.write(os.listdir())
-        return
-
     st.title("Panel de Administración CAME")
+    
+    # Ejecutar diagnóstico de bases de datos
+    check_all_databases()
+    
+    # Determinar qué base de datos usar
+    db_path = 'came_database' if os.path.exists('came_database') else 'users.db'
     
     # Menú lateral
     st.sidebar.title("Menú")
@@ -62,14 +71,9 @@ def admin_app():
     if page == "Usuarios":
         st.header("Lista de Usuarios Registrados")
         
-        # Diagnóstico de la base de datos
         conn = sqlite3.connect(db_path)
         try:
-            # Mostrar todas las tablas
             c = conn.cursor()
-            c.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = c.fetchall()
-            st.write("Tablas en la base de datos:", tables)
             
             # Mostrar estructura de la tabla users
             st.write("Estructura de la tabla users:")
@@ -82,7 +86,7 @@ def admin_app():
             count = c.fetchone()[0]
             st.write(f"Número total de registros: {count}")
             
-            # Mostrar todos los registros con sus columnas
+            # Mostrar todos los registros
             c.execute("""
                 SELECT 
                     username,
@@ -96,8 +100,6 @@ def admin_app():
             """)
             columns = [description[0] for description in c.description]
             data = c.fetchall()
-            st.write("Columnas disponibles:", columns)
-            st.write("Datos encontrados:", data)
             
             if data:
                 df = pd.DataFrame(data, columns=columns)
@@ -107,7 +109,7 @@ def admin_app():
                     if col in df.columns:
                         df[col] = pd.to_datetime(df[col]).dt.strftime('%d/%m/%Y %H:%M')
                 
-                # Renombrar columnas para mejor visualización
+                # Renombrar columnas
                 column_names = {
                     'username': 'Nombre de Entidad',
                     'created_at': 'Fecha de Registro',
@@ -123,7 +125,6 @@ def admin_app():
                 if search_term:
                     df = df[df['Nombre de Entidad'].str.contains(search_term, case=False, na=False)]
                 
-                st.write("Datos en formato tabla:")
                 st.dataframe(df, hide_index=True, use_container_width=True)
                 
                 # Exportar a Excel
@@ -134,7 +135,7 @@ def admin_app():
                 st.warning("No se encontraron registros en la tabla")
 
         except Exception as e:
-            st.error(f"Error detallado al acceder a la base de datos: {str(e)}")
+            st.error(f"Error al acceder a la base de datos: {str(e)}")
         finally:
             conn.close()
     
