@@ -7,6 +7,27 @@ import datetime
 from pathlib import Path
 import os
 
+PROXIMOS_CONSEJOS = [
+    {
+        "fecha": "12/12/2024",
+        "hora": "10:00",
+        "lugar": "Sede CAME",
+        "direccion": "Alem 452",
+        "modalidad": "Presencial",
+        "link_inscripcion": "https://forms.google.com/tu-formulario",
+        "activo": True
+    },
+    {
+        "fecha": "15/01/2025",    # Puedes agregar más consejos
+        "hora": "14:00",
+        "lugar": "Virtual",
+        "direccion": "",
+        "modalidad": "Virtual",
+        "link_inscripcion": "https://zoom.us/tu-link",
+        "activo": True
+    }
+]
+
 # Crear directorio de uploads si no existe
 if not os.path.exists("uploads"):
     os.makedirs("uploads")
