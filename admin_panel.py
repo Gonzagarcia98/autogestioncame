@@ -7,6 +7,37 @@ from datetime import datetime
 import plotly.express as px
 import os
 
+# Código de diagnóstico temporal
+def check_database():
+    try:
+        # Verificar si el archivo existe
+        if os.path.exists('users.db'):
+            print("Base de datos encontrada")
+            conn = sqlite3.connect('users.db')
+            c = conn.cursor()
+            
+            # Verificar estructura
+            c.execute("PRAGMA table_info(users)")
+            structure = c.fetchall()
+            print("Estructura de la tabla:", structure)
+            
+            # Verificar registros
+            c.execute("SELECT * FROM users")
+            records = c.fetchall()
+            print(f"Registros encontrados: {len(records)}")
+            for record in records:
+                print(record)
+            
+            conn.close()
+        else:
+            print("No se encuentra el archivo users.db")
+    except Exception as e:
+        print(f"Error al verificar la base de datos: {e}")
+
+# Ejecutar diagnóstico
+check_database()
+
+
 def admin_app():
     st.set_page_config(page_title="CAME - Panel Administrativo", layout="wide")
     
