@@ -100,13 +100,23 @@ def register_user(username, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     try:
+        # Agregar print para debug
+        print(f"Intentando registrar usuario: {username}")
         c.execute(
-            'INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)',
+            'INSERT INTO users (username, password_hash, salt, created_at) VALUES (?, ?, ?, datetime("now"))',
             (username, password_hash, salt)
         )
         conn.commit()
+        # Verificar si se guardó
+        c.execute('SELECT * FROM users WHERE username = ?', (username,))
+        result = c.fetchone()
+        print(f"Resultado después de insertar: {result}")
         return True
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as e:
+        print(f"Error de integridad: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"Error general: {str(e)}")
         return False
     finally:
         conn.close()
