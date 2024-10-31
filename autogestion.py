@@ -117,56 +117,90 @@ def load_data():
             st.error(f"No se encontró el archivo {file_path}")
             return pd.DataFrame()
 
-        # Intentar diferentes encodings
-        encodings = ['utf-8', 'latin1', 'iso-8859-1']
-        df = None
-        
-        for encoding in encodings:
-            try:
-                df = pd.read_csv(file_path, encoding=encoding)
-                break
-            except UnicodeDecodeError:
-                continue
-        
-        if df is None:
-            st.error("No se pudo leer el archivo con ninguna codificación conocida")
+        # Intentar leer el archivo con diferentes configuraciones
+        try:
+            # Primero intentamos leer el archivo para ver su estructura
+            with open(file_path, 'r', encoding='utf-8') as f:
+                first_line = f.readline()
+                st.write("Encabezados encontrados:", first_line)
+            
+            # Intentar cargar con diferentes separadores
+            separators = [',', ';', '\t']
+            df = None
+            
+            for sep in separators:
+                try:
+                    df = pd.read_csv(file_path, 
+                                   encoding='utf-8', 
+                                   sep=sep,
+                                   error_bad_lines=False,  # Ignora líneas problemáticas
+                                   warn_bad_lines=True)    # Avisa sobre líneas problemáticas
+                    break
+                except Exception as e:
+                    continue
+            
+            if df is None:
+                st.error("No se pudo leer el archivo con ningún separador conocido")
+                return pd.DataFrame()
+
+            # Mostrar información sobre las columnas encontradas
+            st.write("Columnas encontradas en el archivo:", df.columns.tolist())
+            
+            # Mapeo de columnas
+            columns_map = {
+                'Entidad': 'nombre_entidad',
+                'Sigla': 'sigla',
+                'Fecha de Ingreso': 'fecha_ingreso',
+                'Pertenece al CD 2024': 'consejo_directivo',
+                'IGJ': 'igj',
+                'AFIP': 'afip',
+                'Estatuto': 'estatuto',
+                'Nómina Actualizada': 'nomina',
+                'Fecha de vencimiento - NÓMINA': 'vencimiento_nomina',
+                'Presidente': 'presidente',
+                'Fecha de vencimiento - PRESIDENTE': 'vencimiento_presidente',
+                'CUIT': 'cuit',
+                'Estado del CUIT': 'estado_cuit',
+                'Provincia': 'provincia',
+                'Localidad': 'localidad',
+                'Dirección': 'direccion'
+            }
+
+            # Verificar qué columnas existen realmente en el archivo
+            existing_columns = {}
+            for old_col, new_col in columns_map.items():
+                if old_col in df.columns:
+                    existing_columns[old_col] = new_col
+                elif old_col.strip() in df.columns:
+                    existing_columns[old_col.strip()] = new_col
+
+            # Mostrar mapeo de columnas para debug
+            st.write("Mapeo de columnas:", existing_columns)
+
+            # Renombrar las columnas que existen
+            df = df.rename(columns=existing_columns)
+
+            # Limpiar y formatear datos
+            if 'consejo_directivo' in df.columns:
+                df['consejo_directivo'] = df['consejo_directivo'].map({'SI': 'Si', 'NO': 'No'})
+            if 'igj' in df.columns:
+                df['igj'] = df['igj'].map({'SI': 'Si', 'NO': 'No'})
+            if 'afip' in df.columns:
+                df['afip'] = df['afip'].map({'SI': 'Si', 'NO': 'No'})
+            if 'estatuto' in df.columns:
+                df['estatuto'] = df['estatuto'].map({'SI': 'Si', 'NO': 'No'})
+            
+            # Convertir fechas
+            date_columns = ['fecha_ingreso', 'vencimiento_nomina', 'vencimiento_presidente']
+            for col in date_columns:
+                if col in df.columns:
+                    df[col] = pd.to_datetime(df[col], format='%d/%m/%Y', errors='coerce')
+
+            return df
+
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {str(e)}")
             return pd.DataFrame()
-
-        # Mapeo de columnas
-        columns_map = {
-            'Entidad': 'nombre_entidad',
-            'Sigla': 'sigla',
-            'Fecha de Ingreso': 'fecha_ingreso',
-            'Pertenece al CD 2024': 'consejo_directivo',
-            'IGJ': 'igj',
-            'AFIP': 'afip',
-            'Estatuto': 'estatuto',
-            'Nómina Actualizada': 'nomina',
-            'Fecha de vencimiento - NÓMINA': 'vencimiento_nomina',
-            'Presidente': 'presidente',
-            'Fecha de vencimiento - PRESIDENTE': 'vencimiento_presidente',
-            'CUIT': 'cuit',
-            'Estado del CUIT': 'estado_cuit',
-            'Provincia': 'provincia',
-            'Localidad': 'localidad',
-            'Dirección': 'direccion'
-        }
-
-        # Renombrar columnas
-        df = df.rename(columns=columns_map)
-
-        # Limpiar y formatear datos
-        df['consejo_directivo'] = df['consejo_directivo'].map({'SI': 'Si', 'NO': 'No'})
-        df['igj'] = df['igj'].map({'SI': 'Si', 'NO': 'No'})
-        df['afip'] = df['afip'].map({'SI': 'Si', 'NO': 'No'})
-        df['estatuto'] = df['estatuto'].map({'SI': 'Si', 'NO': 'No'})
-        
-        # Convertir fechas
-        date_columns = ['fecha_ingreso', 'vencimiento_nomina', 'vencimiento_presidente']
-        for col in date_columns:
-            df[col] = pd.to_datetime(df[col], format='%d/%m/%Y', errors='coerce')
-
-        return df
 
     except Exception as e:
         st.error(f"Error al cargar el archivo CSV: {str(e)}")
