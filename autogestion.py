@@ -478,9 +478,6 @@ else:
     elif page == "Consejos Directivos":
         st.title("Próximos Consejos Directivos")
         
-        # Debug line
-        st.write("Debug - Consejos configurados:", PROXIMOS_CONSEJOS)
-        
         tab1, tab2 = st.tabs(["Próximas Reuniones", "Histórico"])
         
         with tab1:
