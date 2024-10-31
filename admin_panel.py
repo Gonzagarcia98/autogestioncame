@@ -5,16 +5,21 @@ import hashlib
 import secrets
 from datetime import datetime
 import plotly.express as px
+import os
 
 def admin_app():
     st.set_page_config(page_title="CAME - Panel Administrativo", layout="wide")
     
+    # Verificar la existencia del archivo de base de datos
+    db_path = 'users.db'
+    if not os.path.exists(db_path):
+        st.error(f"No se encuentra el archivo de base de datos: {db_path}")
+        st.info("Archivos disponibles en el directorio:")
+        st.write(os.listdir())
+        return
+
     st.title("Panel de Administración CAME")
     
-    # Función para conectar a la base de datos
-    def get_db_connection():
-        return sqlite3.connect('users.db')
-
     # Menú lateral
     st.sidebar.title("Menú")
     page = st.sidebar.selectbox(
@@ -27,45 +32,78 @@ def admin_app():
         st.header("Lista de Usuarios Registrados")
         
         # Diagnóstico de la base de datos
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect(db_path)
         try:
-            # Mostrar todas las tablas en la base de datos
+            # Mostrar todas las tablas
             c = conn.cursor()
             c.execute("SELECT name FROM sqlite_master WHERE type='table';")
             tables = c.fetchall()
             st.write("Tablas en la base de datos:", tables)
             
-            # Mostrar contenido directo de la tabla users
-            c.execute("SELECT username, created_at, last_login, email, telefono FROM users")
-            users_data = c.fetchall()
+            # Mostrar estructura de la tabla users
+            st.write("Estructura de la tabla users:")
+            c.execute("PRAGMA table_info(users);")
+            st.table(pd.DataFrame(c.fetchall(), 
+                                columns=['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']))
             
-            if users_data:
-                # Convertir los datos a DataFrame para mejor visualización
-                df = pd.DataFrame(users_data, 
-                                columns=['Nombre de Entidad', 'Fecha de Registro', 
-                                        'Último Acceso', 'Email', 'Teléfono'])
+            # Contar registros
+            c.execute("SELECT COUNT(*) FROM users")
+            count = c.fetchone()[0]
+            st.write(f"Número total de registros: {count}")
+            
+            # Mostrar todos los registros con sus columnas
+            c.execute("""
+                SELECT 
+                    username,
+                    created_at,
+                    last_login,
+                    email,
+                    telefono,
+                    fecha_fundacion
+                FROM users
+                ORDER BY created_at DESC
+            """)
+            columns = [description[0] for description in c.description]
+            data = c.fetchall()
+            st.write("Columnas disponibles:", columns)
+            st.write("Datos encontrados:", data)
+            
+            if data:
+                df = pd.DataFrame(data, columns=columns)
                 
                 # Formatear fechas
-                df['Fecha de Registro'] = pd.to_datetime(df['Fecha de Registro']).dt.strftime('%d/%m/%Y %H:%M')
-                df['Último Acceso'] = pd.to_datetime(df['Último Acceso']).dt.strftime('%d/%m/%Y %H:%M')
+                for col in ['created_at', 'last_login']:
+                    if col in df.columns:
+                        df[col] = pd.to_datetime(df[col]).dt.strftime('%d/%m/%Y %H:%M')
+                
+                # Renombrar columnas para mejor visualización
+                column_names = {
+                    'username': 'Nombre de Entidad',
+                    'created_at': 'Fecha de Registro',
+                    'last_login': 'Último Acceso',
+                    'email': 'Email',
+                    'telefono': 'Teléfono',
+                    'fecha_fundacion': 'Fecha de Fundación'
+                }
+                df = df.rename(columns=column_names)
                 
                 # Filtro de búsqueda
                 search_term = st.text_input("Buscar por nombre de entidad")
                 if search_term:
                     df = df[df['Nombre de Entidad'].str.contains(search_term, case=False, na=False)]
                 
-                # Mostrar DataFrame
+                st.write("Datos en formato tabla:")
                 st.dataframe(df, hide_index=True, use_container_width=True)
                 
-                # Botón de exportación
+                # Exportar a Excel
                 if st.button("Exportar a Excel"):
                     df.to_excel("usuarios_came.xlsx", index=False)
                     st.success("Datos exportados a 'usuarios_came.xlsx'")
             else:
-                st.warning("No se encontraron usuarios en la base de datos")
-                
+                st.warning("No se encontraron registros en la tabla")
+
         except Exception as e:
-            st.error(f"Error al acceder a la base de datos: {str(e)}")
+            st.error(f"Error detallado al acceder a la base de datos: {str(e)}")
         finally:
             conn.close()
     
@@ -73,12 +111,12 @@ def admin_app():
     elif page == "Gestión de Usuarios":
         st.header("Gestión de Usuarios")
         
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect(db_path)
         c = conn.cursor()
         
         try:
             # Obtener lista de usuarios
-            c.execute("SELECT username FROM users")
+            c.execute("SELECT username FROM users ORDER BY created_at DESC")
             usuarios = [row[0] for row in c.fetchall()]
             
             if usuarios:
@@ -141,10 +179,11 @@ def admin_app():
     elif page == "Estadísticas":
         st.header("Estadísticas del Sistema")
         
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect(db_path)
         try:
-            # Total de usuarios
             c = conn.cursor()
+            
+            # Total de usuarios
             c.execute("SELECT COUNT(*) FROM users")
             total_users = c.fetchone()[0]
             
