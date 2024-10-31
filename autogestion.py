@@ -7,30 +7,22 @@ import datetime
 from pathlib import Path
 import os
 
-PROXIMOS_CONSEJOS = [
-    {
-        "fecha": "12/12/2024",
-        "hora": "10:00",
-        "lugar": "Sede CAME",
-        "direccion": "Alem 452",
-        "modalidad": "Presencial",
-        "link_inscripcion": "https://forms.google.com/tu-formulario",
-        "activo": True
-    },
-    {
-        "fecha": "15/01/2025",    # Puedes agregar más consejos
-        "hora": "14:00",
-        "lugar": "Virtual",
-        "direccion": "",
-        "modalidad": "Virtual",
-        "link_inscripcion": "https://zoom.us/tu-link",
-        "activo": True
-    }
-]
-
 # Crear directorio de uploads si no existe
 if not os.path.exists("uploads"):
     os.makedirs("uploads")
+
+# Configuración de Consejos Directivos
+PROXIMOS_CONSEJOS = [
+    {
+        "fecha": "06/11/2024",
+        "hora": "08:00",
+        "lugar": "Zoom",
+        "direccion": "",
+        "modalidad": "Virtual",
+        "link_inscripcion": "https://us06web.zoom.us/meeting/register/ejemplo-link-came",
+        "activo": True
+    }
+]
 
 # Configuración de la página
 st.set_page_config(
@@ -138,7 +130,7 @@ def load_data():
             st.error(f"No se encontró el archivo {file_path}")
             return pd.DataFrame()
 
-        # Lista de codificaciones a intentar
+        # Lista de encodings a intentar
         encodings = ['latin1', 'iso-8859-1', 'cp1252', 'utf-8-sig', 'utf-8']
         separators = [';', ',', '\t']
         
@@ -155,7 +147,7 @@ def load_data():
                     df = pd.read_csv(file_path, 
                                    encoding=encoding, 
                                    sep=sep,
-                                   on_bad_lines='skip')  # Ignora líneas problemáticas
+                                   on_bad_lines='skip')
                     successful_encoding = encoding
                     successful_separator = sep
                     break
@@ -165,11 +157,6 @@ def load_data():
         if df is None:
             st.error("No se pudo leer el archivo con ninguna combinación de codificación y separador")
             return pd.DataFrame()
-
-        # Mostrar información de debug
-        st.write(f"Archivo leído con codificación: {successful_encoding}")
-        st.write(f"Separador usado: {successful_separator}")
-        st.write("Columnas encontradas:", df.columns.tolist())
 
         # Limpiar nombres de columnas
         df.columns = df.columns.str.strip()
@@ -194,7 +181,7 @@ def load_data():
             'Dirección': 'direccion'
         }
 
-        # Verificar y mostrar las columnas que coinciden
+        # Verificar y mapear columnas
         existing_columns = {}
         for original_col in df.columns:
             for map_col, new_col in columns_map.items():
@@ -202,10 +189,7 @@ def load_data():
                     existing_columns[original_col] = new_col
                     break
 
-        # Mostrar el mapeo encontrado
-        st.write("Mapeo de columnas realizado:", existing_columns)
-
-        # Renombrar solo las columnas que existen
+        # Renombrar columnas
         df = df.rename(columns=existing_columns)
 
         # Limpiar y formatear datos
@@ -241,7 +225,6 @@ def save_file(uploaded_file, entity_name, file_type):
         save_dir = Path(f"uploads/{entity_name}")
         save_dir.mkdir(parents=True, exist_ok=True)
         
-        # Agregar timestamp al nombre del archivo
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         file_extension = uploaded_file.name.split('.')[-1]
         file_name = f"{file_type}_{timestamp}.{file_extension}"
@@ -250,7 +233,6 @@ def save_file(uploaded_file, entity_name, file_type):
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
             
-        # Registrar la subida en un log
         log_path = save_dir / "uploads_log.txt"
         with open(log_path, "a") as log:
             log.write(f"{datetime.datetime.now()}: Subido {file_type} - {file_name}\n")
@@ -442,7 +424,7 @@ else:
                     if save_file(igj_file, entity_data['nombre_entidad'], "igj"):
                         st.success("IGJ enviado correctamente")
             
-           # AFIP
+            # AFIP
             st.write("### AFIP")
             afip_status = "Enviado" if entity_data['afip'] == "Si" else "Pendiente"
             st.write(f"Estado: {afip_status}")
@@ -496,22 +478,45 @@ else:
     elif page == "Consejos Directivos":
         st.title("Próximos Consejos Directivos")
         
-        # Crear tabs para diferentes tipos de información
+        # Debug line
+        st.write("Debug - Consejos configurados:", PROXIMOS_CONSEJOS)
+        
         tab1, tab2 = st.tabs(["Próximas Reuniones", "Histórico"])
         
         with tab1:
-            # Ejemplo de información de próximos consejos
-            hay_info = False  # TODO: Implementar lógica real para verificar si hay información
+            hay_info = len([c for c in PROXIMOS_CONSEJOS if c["activo"]]) > 0
             
             if hay_info:
-                st.write("### Próxima reunión")
-                st.write("Fecha: [Fecha]")
-                st.write("Lugar: [Lugar]")
-                st.write("Hora: [Hora]")
-                
-                # Botón de inscripción si está disponible
-                if st.button("Inscribirse a la reunión"):
-                    st.write("Redirigiendo al formulario de inscripción...")
+                for consejo in PROXIMOS_CONSEJOS:
+                    if consejo["activo"]:
+                        st.write("### Próxima reunión")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write(f"*Fecha:* {consejo['fecha']}")
+                            st.write(f"*Hora:* {consejo['hora']}")
+                            st.write(f"*Modalidad:* {consejo['modalidad']}")
+                        
+                        with col2:
+                            st.write(f"*Lugar:* {consejo['lugar']}")
+                            if consejo['direccion']:
+                                st.write(f"*Dirección:* {consejo['direccion']}")
+                        
+                        if consejo['link_inscripcion']:
+                            st.markdown(f"""
+                            <a href="{consejo['link_inscripcion']}" target="_blank">
+                                <button style="
+                                    background-color: #1f77b4;
+                                    color: white;
+                                    padding: 10px 20px;
+                                    border: none;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    margin-top: 10px;">
+                                    Inscribirse a la reunión
+                                </button>
+                            </a>
+                            """, unsafe_allow_html=True)
             else:
                 st.info("No hay información disponible sobre próximos consejos directivos")
         
