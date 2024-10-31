@@ -180,5 +180,5 @@ def admin_app():
         monthly_registrations = df_users.groupby(df_users['created_at'].dt.strftime('%Y-%m'))['username'].count()
         st.bar_chart(monthly_registrations)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     admin_app()
